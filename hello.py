@@ -4,7 +4,11 @@
 ' a hello module '
 __author__ = 'ricky Xu'
 import sys
-
+import logging
+from io import StringIO
+import os
+logging.basicConfig(level=logging.INFO)
+#
 
 
 print("hello!");
@@ -118,5 +122,60 @@ isAnimal = isinstance(dog1,Animal);
 dog1.run();
 
 L = dir('ABC')
+#
+# try:
+#     r= int('a');
+# except ZeroDivisionError as e:
+#     print(e)
+# except ValueError as e:
+#     print(e)
+
+# s = '0'
+# n = int(s)
+# logging.info('n = %d' % n)
+# print(10 / n)
+# try:
+#     r = 10/int('a');
+#     print('result:'+r);
+# except ZeroDivisionError as e:
+#     print('zeroExcept:'+e);
+# except ValueError as e:
+#     print('valueExcept:'+e)
+# finally:
+#     print('finally...');
+
+
+#管道f
+try:
+    f = open('hello.txt', 'r');
+    #str = f.read();
+    # strList=f.readlines()  #line.strip()    删掉行末尾的\n
+
+    str=''
+    s=''
+    while True:
+        s = f.read(2);
+        if s == '':
+            break;
+        print(s.strip())
+
+
+except BaseException as e:
+    print(e)
+    #logging.info('readFile:'+e);
+finally:
+    if f:
+        f.close();
+with open('hello.txt', 'r') as f:
+    f.read();
+
+ff = StringIO();
+ff.write('hi man');
+ffstr = ff.getvalue()
+
+oss = os.environ
+
+os.rename('hello.txt','reHello.txt')
+
 
 print(ricky)
