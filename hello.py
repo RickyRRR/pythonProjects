@@ -48,7 +48,31 @@ n1 = list(range(5));   #range(5)生成的序列是从0开始小于5的整数
 # 关键字参数
 # def person(name,age,**other):  other作为dict处理
 # extra = {'city': 'Beijing', 'job': 'Engineer'}     person('xiaoming',25,city='hangz',sex='male') 或者person('Jack', 24, **extra)
+# def total(a=5,*number,**phonebook):
+#     print('a',a);
+#
+#     for single_item in number:
+#         print('single_item',single_item);
+#
+#     for first,second in phonebook.items():
+#         print(first,second)
+#
+# print(total(10,1,2,3,Jack=1123,John=2231,Inge=1560))
+def print_max(x, y):
+    '''打印两个数值中的最大数。
 
+    这两个数都应该是整数'''
+    # 如果可能，将其转换至整数类型
+    x = int(x)
+    y = int(y)
+    if x > y:
+        print(x, 'is maximum')
+    else:
+        print(y, 'is maximum')
+
+print_max(3, 5)
+print(print_max.__doc__)
+#help(print_max);
 # for i, value in enumerate(['A', 'B', 'C']):   有key也有value
 #     print(i, value)
 # L = [x * x for x in range(10) if x%2==0]   #列表生成式
@@ -147,7 +171,7 @@ L = dir('ABC')
 
 #管道f
 try:
-    f = open('hello.txt', 'r');
+    f = open('reHello.txt', 'r');
     #str = f.read();
     # strList=f.readlines()  #line.strip()    删掉行末尾的\n
 
@@ -166,7 +190,7 @@ except BaseException as e:
 finally:
     if f:
         f.close();
-with open('hello.txt', 'r') as f:
+with open('reHello.txt', 'r') as f:
     f.read();
 
 ff = StringIO();
@@ -175,7 +199,17 @@ ffstr = ff.getvalue()
 
 oss = os.environ
 
-os.rename('hello.txt','reHello.txt')
+#os.rename('hello.txt','reHello.txt')
 
 
 print(ricky)
+#print('{0:_^11}'.format('hello'))
+
+# str1 = 'abchjk'
+# listStr1 = list(str1);
+# listStr1.reverse();
+# print(listStr1)
+# p = '-'.join(listStr1);
+
+list = [1,2,3,4];
+print(list[::-2])
