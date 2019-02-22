@@ -94,7 +94,7 @@ if __name__ == '__main__':
     # client = pymongo.MongoClient(Mongo_Url)
     # db = client[Mongo_DB]
     pool = Pool()  #开启多线程
-    for pageUrl in generate_allurl('2', 'hz'):
+    for pageUrl in generate_allurl('50', 'hz'):
         t = uniform(1, 3)
         time.sleep(t)
         # 强制要求请求休息一下，我们这里用1，3之间的随机数
