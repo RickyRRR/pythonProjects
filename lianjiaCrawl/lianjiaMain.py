@@ -4,8 +4,10 @@
 ' a hello module '
 import datetime
 import json
+import os
 
 import pymongo
+import yaml
 from requests import HTTPError, Timeout
 
 __author__ = 'ricky Xu'
@@ -18,6 +20,8 @@ from pyquery import PyQuery as pq
 import pandas as pd
 from fake_useragent import UserAgent
 import logging
+
+
 
 ua = UserAgent()
 headers1 = {'User-Agent':'ua.ramdom'}
@@ -33,6 +37,16 @@ db = client[Mongo_DB]
 count = 0
 # 一个我们将要爬取城市的列表
 cities = ['bj', 'sh', 'nj', 'wh', 'cd', 'xa','hf']
+
+def setup_logging(default_path='config.yaml', default_level=logging.INFO):
+    path = default_path
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            config = yaml.load(f)
+            logging.config.dictConfig(config)
+    else:
+        logging.basicConfig(level=default_level)
+
 
 def get_city():
     global cities
@@ -93,24 +107,29 @@ def open_url(detailUrl):  # 分析详细url获取所需信息
                 if temp.text() == '房协编码':
                     info['houseNo'] = temp.siblings().text()   #房协编号
                     break
-            print(info)
+
+            logging.info(info)
             return info
-    except AttributeError:
-        print('我发现了一个错误')
-    except UnicodeEncodeError:
-        print('有一个编码错误')
+    except Exception:
+        logging.error('OpenUrlError', exc_info=True)
+
 
 #存储数据
 def update_to_MongoDB(one_page):  # update储存到MongoDB
      if db[Mongo_TABLE].update({'lianjiaNo': one_page['lianjiaNo']}, {'$set': one_page}, True): #去重复  True的意思如果不存在插入，存在则更新
-         print('储存MongoDB 成功!')
+
+         logging.info('储存MongoDB 成功!')
          return True
+     logging.info('储存MongoDB 失败!')
      return False
 def pandas_to_xlsx(info):  # 储存到xlsx
-     pd_look = pd.DataFrame(info)
-     pd_look.to_excel('链家二手房.xlsx', sheet_name='链家二手房')
+     pd_look = pd.DataFrame(info,index = [0])
+     pd_look.to_csv('链家二手房.csv',mode='a')
 
-
+def writer_to_text(list):               #储存到text
+    with open('链家二手房.text','a',encoding='utf-8')as f:
+        f.write(json.dumps(list,ensure_ascii=False)+'\n')
+        f.close()
 def main(url):
 
     #解析详情页面内
@@ -118,8 +137,9 @@ def main(url):
     infoDict  = open_url(detailUrl=url)   #info字典类型
     infoDict['insertTime'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     infoDict['city'] = '杭州'
+    #pandas_to_xlsx(infoDict)
     #writer_to_text(open_url(url))    #储存到text文件
-    update_to_MongoDB(infoDict)   #储存到Mongodb
+    #update_to_MongoDB(infoDict)   #储存到Mongodb
 
 def getxiaoquList(city,region):
     url = 'https://' + city + '.lianjia.com/'+region+'/'
@@ -173,9 +193,7 @@ def getAllPageUrlInXq(baseUrl,xqUrlSearch):
     if res.status_code == 200:
         doc = pq(res.text)
         # temping = doc('div.resultDes span').text();
-        # print('数量：'+temping)
-        # print(type(temping))
-        # print(temping.strip() == '0')
+
         if doc('div.resultDes span').text().strip() == '0':  #如果0套房子 返回None
             #print('小区0套房子在售')
             yield None
@@ -186,7 +204,7 @@ def getAllPageUrlInXq(baseUrl,xqUrlSearch):
             xqName = temp[2:]
             #xqName = doc('div.agentCardSemInfoName a.agentCardResblockTitle').text()
             # print(len(doc('div.agentCardSemInfoName')))
-            print('小区名字：'+xqName)
+            # print('小区名字：'+xqName)
             dictStr = doc('div.house-lst-page-box').attr('page-data')
             dictTemp = json.loads(dictStr)
             totalPage = dictTemp['totalPage']
@@ -214,14 +232,16 @@ if __name__ == '__main__':
     pool = Pool()  # 开启多线程
     regionPageCount = 0
 
-    beginTime = time.time();
+    beginTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');
+    beginTimeStamp = time.time();
     # user_in_city = input('输入爬取城市：')
     # user_in_nub = input('输入爬取页数：')
     city = 'hz'
     baseUrl = 'https://' + city + '.lianjia.com'
     regionsList = getRegionsList(city)
     #regionsList.remove('/xiaoqu/xihu/')
-    print(regionsList)
+
+    logging.info(regionsList)
     regionsList = ['/xiaoqu/xiaoshan/']
 
     for region in regionsList:   #region形式为/xiaoqu/xihu/  return
@@ -231,39 +251,47 @@ if __name__ == '__main__':
         for pageUrl1 in pageUrlInRegion:
             try:
                 regionPageCount += 1
-                print('行政区第'+str(regionPageCount)+'页')
-                print('行政区：'+pageUrl1)
+                # print('行政区第'+str(regionPageCount)+'页')
+                logging.info(str(region)+str(regionPageCount)+'页-  url:'+pageUrl1)
+
+                #行政区中的小区有很多页，某一页中所有指向小区的url组装成列表返回给xqUrlSearch 格式： https://hz.lianjia.com/ershoufang/rs金地自在城/
                 xqUrlSearch = getXqInfoInPage(pageUrl1,city)    #yield  https://hz.lianjia.com/ershoufang/rs金地自在城/
                 #xqSearchBaseUrl = baseUrl+'/ershoufang/rs'
                 for xqurl in xqUrlSearch:
-                    print('小区搜索：'+xqurl)
+                    # print('开始爬取某个小区，url：'+xqurl)
+                    logging.info('开始爬取某个小区，url：'+xqurl+'\n' )
+
+                    # 小区的在售房源有20页 1-20页，每页的url 返回给pageUrlInXq
                     pageUrlInXq = getAllPageUrlInXq(baseUrl=baseUrl,xqUrlSearch=xqurl)    #https://hz.lianjia.com/ershoufang/pg1rs金地自在城/  yield
-
-
-                    # if pageUrlInXq == None:
-                    #     print('小区没有房子在售')
-                    #     continue
                     xqPageCount = 0
+
                     for pageUrl2 in pageUrlInXq:
                         if pageUrl2 == None:
-                            print('小区没有房子在售')
+                            # print('小区没有房子在售')
+                            logging.info('小区没有房子在售')
                             break
                         xqPageCount += 1
-                        print('某小区第'+str(xqPageCount)+'页')
-                        print(pageUrl2)
+                        # print('该小区第'+str(xqPageCount)+'页')
+                        logging.info('该小区第'+str(xqPageCount)+'页  -url:'+pageUrl2)
+                        # print(pageUrl2)
+                        # 某个小区有很多房源，有很多页，某一页中所有指向所有房源的url组装成列表返回给houseUrlList
                         houseUrlList = getHouseInfoInPage(pageUrl2)    #return
-                        for tt in houseUrlList:
-                            print(tt)
+                        # for tt in houseUrlList:
+                        #     print(tt)
                         t = uniform(1, 3)
                         time.sleep(t)
 
                         pool.map(main, [url for url in houseUrlList])
-            except ConnectionError as e:
-                print('遇到网络问题（如：DNS 查询失败、拒绝连接等')
-            except HTTPError as e:
-                print('HTTP 请求返回了不成功的状态码{}'.format(e.code))
-            except Timeout as e:
-                print('请求超时')
+            except Exception as e:
+                logging.error('Error', exc_info=True)
+            # finally:
+            #     print('finally...')
+            # except ConnectionError as e:
+            #     print('遇到网络问题（如：DNS 查询失败、拒绝连接等')
+            # except HTTPError as e:
+            #     print('HTTP 请求返回了不成功的状态码{}'.format(e.code))
+            # except Timeout as e:
+            #     print('请求超时')
 
 
 
@@ -288,5 +316,9 @@ if __name__ == '__main__':
     #     except Timeout as e:
     #         print('请求超时')
 
-    endTime = time.time();
-    print('end.....' + str(endTime - beginTime))
+    endTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');
+    endTimeStamp = time.time();
+    logging.info('爬取结束.....' )
+    logging.info('开始时间：'+beginTime + '   结束时间：'+endTime + '  -用时：' + str(endTimeStamp - beginTimeStamp))
+
+
