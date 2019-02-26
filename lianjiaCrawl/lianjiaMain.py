@@ -20,13 +20,13 @@ from pyquery import PyQuery as pq
 import pandas as pd
 from fake_useragent import UserAgent
 import logging
-
+import logging.config
 
 
 ua = UserAgent()
 headers1 = {'User-Agent':'ua.ramdom'}
 
-
+YAML_PATH = 'config.yaml'
 Mongo_Url = 'localhost'
 Mongo_Port = 27017
 Mongo_DB = 'lianjia'
@@ -139,7 +139,7 @@ def main(url):
     infoDict['city'] = '杭州'
     #pandas_to_xlsx(infoDict)
     #writer_to_text(open_url(url))    #储存到text文件
-    #update_to_MongoDB(infoDict)   #储存到Mongodb
+    update_to_MongoDB(infoDict)   #储存到Mongodb
 
 def getxiaoquList(city,region):
     url = 'https://' + city + '.lianjia.com/'+region+'/'
@@ -166,12 +166,16 @@ def getPageUrlInRegion(baseUrl,region):
     res = requests.get(url,headers = headers1)
     if res.status_code==200 :
         doc = pq(res.text)
-        dictStr = doc('.house-lst-page-box').attr('page-data')
-        dictTemp = json.loads(dictStr)
-        totalPage = dictTemp['totalPage']
-        pageUrl = url+'pg{}/'
-        for num in range(1,int(totalPage)):
-            yield pageUrl.format(num)
+        if doc('div.resultDes span').text().strip() == '0':  #如果该行政区0套小区 返回None
+
+            yield None
+        else:
+            dictStr = doc('.house-lst-page-box').attr('page-data')
+            dictTemp = json.loads(dictStr)
+            totalPage = dictTemp['totalPage']
+            pageUrl = url+'pg{}/'
+            for num in range(1,int(totalPage)):
+                yield pageUrl.format(num)
 
 
 
@@ -181,6 +185,7 @@ def getXqInfoInPage(url,city):   #url=https://hz.lianjia.com/xiaoqu/xihu/pg1/
     if res.status_code == 200:
         doc = pq(res.text)
         htmla = doc('.listContent .info  .title a')
+        htmlSpanCount = doc('.listContent .info  .title a')
         xqInfoUrl = 'https://'+city+'.lianjia.com/ershoufang/rs{}/'
         for item in htmla.items():
             yield   xqInfoUrl.format(item.text())  #返回搜索小区的链接
@@ -229,6 +234,8 @@ def getHouseInfoInPage(url):
 
 
 if __name__ == '__main__':
+
+    setup_logging(YAML_PATH)
     pool = Pool()  # 开启多线程
     regionPageCount = 0
 
@@ -242,7 +249,8 @@ if __name__ == '__main__':
     #regionsList.remove('/xiaoqu/xihu/')
 
     logging.info(regionsList)
-    regionsList = ['/xiaoqu/xiaoshan/']
+    print(regionsList)
+    regionsList = ['/xiaoqu/linan/']
 
     for region in regionsList:   #region形式为/xiaoqu/xihu/  return
 
@@ -250,6 +258,10 @@ if __name__ == '__main__':
         pageUrlInRegion = getPageUrlInRegion(baseUrl= baseUrl,region=region) #行政区中小区列表的某一页   yield
         for pageUrl1 in pageUrlInRegion:
             try:
+                if pageUrl1 == None:
+
+                    logging.info('该行政区没有小区有在售二手房')
+                    break
                 regionPageCount += 1
                 # print('行政区第'+str(regionPageCount)+'页')
                 logging.info(str(region)+str(regionPageCount)+'页-  url:'+pageUrl1)
