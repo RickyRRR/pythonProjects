@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 ' a hello module '
+import json
+
 
 def foo(s):
 
@@ -12,14 +14,21 @@ def bar(s):
 
     return foo(s) * 2
 
-
+def jsonDict():
+    dictStr = None
+    dictTemp = json.loads(dictStr)
 def main():
-    try:
-        bar('0')
-    except Exception as e:
-        print('Error:', e)
-    finally:
-        print('finally...')
+
+    for i in range(3):
+        print(i)
+        try:
+            # bar('0')
+            jsonDict()
+
+        except Exception as e:
+            print('Error..:', e)
+        finally:
+            print('finally...')
 
 
 if __name__ == '__main__':
