@@ -335,7 +335,7 @@ def run():
     logging.info('爬取结束.....')
     logging.info('开始时间：' + beginTime + '   结束时间：' + endTime + '  -用时：' + str(endTimeStamp - beginTimeStamp))
 
-<<<<<<< Updated upstream:lianjiaCrawl/lianjiaMain.py
+
 
 if __name__ == '__main__':
     runRightnow = input('是否立即执行，y/n')
@@ -347,7 +347,7 @@ if __name__ == '__main__':
             schedule.run_pending()
             time.sleep(1)
 
-=======
+
 if __name__ == '__main__':
     schedule.every().saturday.at('9:00').do(run)
     while True:
@@ -422,6 +422,6 @@ if __name__ == '__main__':
     # endTimeStamp = time.time();
     # logging.info('爬取结束.....' )
     # logging.info('开始时间：'+beginTime + '   结束时间：'+endTime + '  -用时：' + str(endTimeStamp - beginTimeStamp))
->>>>>>> Stashed changes:lianjiaCrawl/lianjiaMainc.py
+
 
 
