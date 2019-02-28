@@ -7,11 +7,7 @@ import json
 import os
 
 import pymongo
-
 import schedule as schedule
-
-import schedule
-
 import yaml
 from requests import HTTPError, Timeout
 
@@ -19,7 +15,7 @@ __author__ = 'ricky Xu'
 import time,csv
 from random import uniform,choice
 import requests
-
+from bs4 import BeautifulSoup
 from multiprocessing import Pool
 from pyquery import PyQuery as pq
 import pandas as pd
@@ -237,12 +233,8 @@ def getHouseInfoInPage(url):
         return houseUrlList
 
 
-
 def run():
     setup_logging(YAML_PATH)
-
-def run():
-    pass
     pool = Pool()  # 开启多线程
     regionPageCount = 0
 
@@ -336,7 +328,6 @@ def run():
     logging.info('开始时间：' + beginTime + '   结束时间：' + endTime + '  -用时：' + str(endTimeStamp - beginTimeStamp))
 
 
-
 if __name__ == '__main__':
     runRightnow = input('是否立即执行，y/n')
     if runRightnow == 'y':
@@ -346,82 +337,3 @@ if __name__ == '__main__':
         while True:
             schedule.run_pending()
             time.sleep(1)
-
-
-if __name__ == '__main__':
-    schedule.every().saturday.at('9:00').do(run)
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
-
-    # pool = Pool()  # 开启多线程
-    # regionPageCount = 0
-    #
-    # beginTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');
-    # beginTimeStamp = time.time();
-    # # user_in_city = input('输入爬取城市：')
-    # # user_in_nub = input('输入爬取页数：')
-    # city = 'hz'
-    # baseUrl = 'https://' + city + '.lianjia.com'
-    # regionsList = getRegionsList(city)
-    # #regionsList.remove('/xiaoqu/xihu/')
-    #
-    # logging.info(regionsList)
-    # regionsList = ['/xiaoqu/xiaoshan/']
-    #
-    # for region in regionsList:   #region形式为/xiaoqu/xihu/  return
-    #
-    #     #https://hz.lianjia.com/xiaoqu/xihu/pg1/
-    #     pageUrlInRegion = getPageUrlInRegion(baseUrl= baseUrl,region=region) #行政区中小区列表的某一页   yield
-    #     for pageUrl1 in pageUrlInRegion:
-    #         try:
-    #             regionPageCount += 1
-    #             # print('行政区第'+str(regionPageCount)+'页')
-    #             logging.info(str(region)+str(regionPageCount)+'页-  url:'+pageUrl1)
-    #
-    #             #行政区中的小区有很多页，某一页中所有指向小区的url组装成列表返回给xqUrlSearch 格式： https://hz.lianjia.com/ershoufang/rs金地自在城/
-    #             xqUrlSearch = getXqInfoInPage(pageUrl1,city)    #yield  https://hz.lianjia.com/ershoufang/rs金地自在城/
-    #             #xqSearchBaseUrl = baseUrl+'/ershoufang/rs'
-    #             for xqurl in xqUrlSearch:
-    #                 # print('开始爬取某个小区，url：'+xqurl)
-    #                 logging.info('开始爬取某个小区，url：'+xqurl+'\n' )
-    #
-    #                 # 小区的在售房源有20页 1-20页，每页的url 返回给pageUrlInXq
-    #                 pageUrlInXq = getAllPageUrlInXq(baseUrl=baseUrl,xqUrlSearch=xqurl)    #https://hz.lianjia.com/ershoufang/pg1rs金地自在城/  yield
-    #                 xqPageCount = 0
-    #
-    #                 for pageUrl2 in pageUrlInXq:
-    #                     if pageUrl2 == None:
-    #                         # print('小区没有房子在售')
-    #                         logging.info('小区没有房子在售')
-    #                         break
-    #                     xqPageCount += 1
-    #                     # print('该小区第'+str(xqPageCount)+'页')
-    #                     logging.info('该小区第'+str(xqPageCount)+'页  -url:'+pageUrl2)
-    #                     # print(pageUrl2)
-    #                     # 某个小区有很多房源，有很多页，某一页中所有指向所有房源的url组装成列表返回给houseUrlList
-    #                     houseUrlList = getHouseInfoInPage(pageUrl2)    #return
-    #                     # for tt in houseUrlList:
-    #                     #     print(tt)
-    #                     t = uniform(1, 3)
-    #                     time.sleep(t)
-    #
-    #                     pool.map(main, [url for url in houseUrlList])
-    #         except Exception as e:
-    #             logging.error('Error', exc_info=True)
-    #         # finally:
-    #         #     print('finally...')
-    #         # except ConnectionError as e:
-    #         #     print('遇到网络问题（如：DNS 查询失败、拒绝连接等')
-    #         # except HTTPError as e:
-    #         #     print('HTTP 请求返回了不成功的状态码{}'.format(e.code))
-    #         # except Timeout as e:
-    #         #     print('请求超时')
-    #
-    # endTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');
-    # endTimeStamp = time.time();
-    # logging.info('爬取结束.....' )
-    # logging.info('开始时间：'+beginTime + '   结束时间：'+endTime + '  -用时：' + str(endTimeStamp - beginTimeStamp))
-
-
-
