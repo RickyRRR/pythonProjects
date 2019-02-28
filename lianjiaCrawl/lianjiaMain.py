@@ -242,7 +242,7 @@ def run():
     setup_logging(YAML_PATH)
 
 def run():
-
+    pass
     pool = Pool()  # 开启多线程
     regionPageCount = 0
 
