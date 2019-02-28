@@ -16,7 +16,7 @@ handlers:
     level: DEBUG
     filename: info.log
     encoding: utf8
-    when: H
+    when: D
     backupCount: 20
   error:
     class: logging.handlers.RotatingFileHandler

@@ -12,10 +12,10 @@ import yaml
 from requests import HTTPError, Timeout
 
 __author__ = 'ricky Xu'
-import time,csv
+import time
 from random import uniform,choice
 import requests
-from bs4 import BeautifulSoup
+
 from multiprocessing import Pool
 from pyquery import PyQuery as pq
 import pandas as pd
@@ -34,7 +34,7 @@ Mongo_DB = 'lianjia'
 Mongo_TABLE = 'Lianjia hz'
 client = pymongo.MongoClient(host=Mongo_Url, port=Mongo_Port)
 db = client[Mongo_DB]
-
+currentdate = datetime.datetime.now().strftime('%Y%m%d')   #str
 count = 0
 # 一个我们将要爬取城市的列表
 cities = ['bj', 'sh', 'nj', 'wh', 'cd', 'xa','hf']
@@ -91,8 +91,8 @@ def open_url(detailUrl):  # 分析详细url获取所需信息
             info = {}
             doc = pq(res.text)
             info['title'] = doc('.main').text()  # soup.select('.main')[0].text    #标题
-            info['totalPrice'] = doc('.price .total').text()  # soup.select('.total')[0].text + '万'    #总价
-            info['squarePrice'] = doc('.price .unitPriceValue').text()  # soup.select('.unitPriceValue')[0].text  #每平方售价
+            info['totalPrice'+currentdate] = doc('.price .total').text()  # soup.select('.total')[0].text + '万'    #总价
+            info['squarePrice'+currentdate] = doc('.price .unitPriceValue').text()  # soup.select('.unitPriceValue')[0].text  #每平方售价
             # info['参考总价'] = soup.select('.taxtext')[0].text
             info['buildTime'] = doc('.houseInfo .area .subInfo').text()  # soup.select('.subInfo')[2].text   建造时间
             info['buildAreaMeasure'] = doc('.houseInfo .area .mainInfo').text()   #面积
@@ -134,9 +134,9 @@ def writer_to_text(list):               #储存到text
 def main(url):
 
     #解析详情页面内
-
+    infoDict = {}
     infoDict  = open_url(detailUrl=url)   #info字典类型
-    infoDict['insertTime'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    infoDict['time'+currentdate] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     infoDict['city'] = '杭州'
     #pandas_to_xlsx(infoDict)
     #writer_to_text(open_url(url))    #储存到text文件
@@ -249,8 +249,8 @@ def run():
 
     logging.info(regionsList)
     print(regionsList)
-    regionsList = ['/xiaoqu/linan/']
-
+    #regionsList = ['/xiaoqu/linan/']
+    regionsList.remove('/xiaoqu/linan/')
     for region in regionsList:  # region形式为/xiaoqu/xihu/  return
 
         # https://hz.lianjia.com/xiaoqu/xihu/pg1/
