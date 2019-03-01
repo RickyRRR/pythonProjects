@@ -6,7 +6,7 @@ import time
 
 import schedule
 
-
+count = 0
 def hi():
     print('hiserver')
 
@@ -17,14 +17,18 @@ def forTest():
         print(i)
         if i == 3:
             list.append(4)
-
+def globalVar():
+    global count
+    if True:
+        count += 1
+def run():
+    print(count)
 if __name__ == '__main__':
     # schedule.every(3).minutes.do(hi)
     # while True:
     #     schedule.run_pending()
     #     time.sleep(1)
     a = [1,2]
-    if len(a) != 0 :
-        print(a)
-    else:
-        print(0)
+    for i in range(3):
+        globalVar()
+    run()
