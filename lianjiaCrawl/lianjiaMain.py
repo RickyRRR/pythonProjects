@@ -35,6 +35,14 @@ Mongo_TABLE = 'Lianjia hz'
 client = pymongo.MongoClient(host=Mongo_Url, port=Mongo_Port)
 db = client[Mongo_DB]
 currentdate = datetime.datetime.now().strftime('%Y%m%d')   #str
+city = 'hz'
+baseUrl = 'https://' + city + '.lianjia.com'
+
+
+undoneHouseUrlList = [] #记录没成功请求的房子url
+undonePageUrlInXqList = []  #m小区某页没请求成功，请求该页的所有房子url失败
+undoneXqList = []   #根据小区，请求该小区的所有pageUrl失败
+undonePageUrlInRegionList = []
 count = 0
 # 一个我们将要爬取城市的列表
 cities = ['bj', 'sh', 'nj', 'wh', 'cd', 'xa','hf']
@@ -87,6 +95,7 @@ def open_url(detailUrl):  # 分析详细url获取所需信息
     #可以设置请求头 反爬虫
     try:
         res = requests.get(detailUrl,headers=headers1)
+
         if res.status_code == 200:
             info = {}
             doc = pq(res.text)
@@ -109,11 +118,20 @@ def open_url(detailUrl):  # 分析详细url获取所需信息
                     info['houseNo'] = temp.siblings().text()   #房协编号
                     break
 
+            info['time' + currentdate] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            info['city'] = '杭州'
             logging.info(info)
             return info
+        else:
+            undoneHouseUrlList.append(detailUrl)
+            return None
     except Exception:
+        undoneHouseUrlList.append(detailUrl)
         logging.error('OpenUrlError', exc_info=True)
-
+        return None
+    finally:
+        s = requests.session()
+        s.keep_alive = False  # 关闭多余连接
 
 #存储数据
 def update_to_MongoDB(one_page):  # update储存到MongoDB
@@ -123,6 +141,7 @@ def update_to_MongoDB(one_page):  # update储存到MongoDB
          return True
      logging.info('储存MongoDB 失败!')
      return False
+
 def pandas_to_xlsx(info):  # 储存到xlsx
      pd_look = pd.DataFrame(info,index = [0])
      pd_look.to_csv('链家二手房.csv',mode='a')
@@ -131,13 +150,15 @@ def writer_to_text(list):               #储存到text
     with open('链家二手房.text','a',encoding='utf-8')as f:
         f.write(json.dumps(list,ensure_ascii=False)+'\n')
         f.close()
+
 def main(url):
 
     #解析详情页面内
-    infoDict = {}
+
     infoDict  = open_url(detailUrl=url)   #info字典类型
-    infoDict['time'+currentdate] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    infoDict['city'] = '杭州'
+    if infoDict == None:
+        return
+
     #pandas_to_xlsx(infoDict)
     #writer_to_text(open_url(url))    #储存到text文件
     update_to_MongoDB(infoDict)   #储存到Mongodb
@@ -232,69 +253,213 @@ def getHouseInfoInPage(url):
             houseUrlList.append(item.attr('href'))
         return houseUrlList
 
+def handleundonePageUrlInRegionList():
+    pool = Pool()  # 开启多线程
+    for pageUrlinRegion in undonePageUrlInRegionList:  # pageUrlInRegion包含了很多小区
+        try:
+            xqUrlSearch = getXqInfoInPage(pageUrlinRegion, city)  # yield  https://hz.lianjia.com/ershoufang/rs金地自在城/
+            for xqurl in xqUrlSearch:
+                try:
+                    # print('开始爬取某个小区，url：'+xqurl)
+                    logging.info('undonePageUrlInRegionList第二次开始爬取某个小区，url：' + xqurl + '\n')
+
+                    # 小区的在售房源有20页 1-20页，每页的url 返回给pageUrlInXq
+                    pageUrlsInXq = getAllPageUrlInXq(baseUrl=baseUrl,
+                                                     xqUrlSearch=xqurl)  # https://hz.lianjia.com/ershoufang/pg1rs金地自在城/  yield
+                    xqPageCount = 0
+                    for pageUrlInXq in pageUrlsInXq:
+                        try:
+                            if pageUrlInXq == None:
+                                # print('小区没有房子在售')
+                                logging.info('小区没有房子在售')
+                                break
+                            xqPageCount += 1
+                            # print('该小区第'+str(xqPageCount)+'页')
+                            logging.info('该小区第' + str(xqPageCount) + '页  -url:' + pageUrlInXq)
+                            # print(pageUrl2)
+                            # 某个小区有很多房源，有很多页，某一页中所有指向所有房源的url组装成列表返回给houseUrlList
+                            houseUrlList = getHouseInfoInPage(pageUrlInXq)  # return
+                            # for tt in houseUrlList:
+                            #     print(tt)
+                            t = uniform(1, 3)
+                            time.sleep(t)
+
+                            pool.map(main, [url for url in houseUrlList])
+                        except Exception as e:
+                            # 小区某页未能请求成功，添加进队列后续处理 getHouseInfoInPage(pageUrl2)
+                            # undonePageUrlInXqList.append(pageUrl2)
+                            logging.error('Error' + pageUrlInXq, exc_info=True)
+                except Exception as e:
+                    logging.error('Error' + xqurl, exc_info=True)
+        except Exception as e:
+            logging.error('Error' + pageUrlinRegion, exc_info=True)
+
+def handleundoneXqList():
+    pool = Pool()  # 开启多线程
+    for xqurl in undoneXqList:
+        try:
+            # print('开始爬取某个小区，url：'+xqurl)
+            logging.info('handleundoneXqList第二次开始爬取某个小区，url：' + xqurl + '\n')
+
+            # 小区的在售房源有20页 1-20页，每页的url 返回给pageUrlInXq
+            pagesUrlInXq = getAllPageUrlInXq(baseUrl=baseUrl,
+                                            xqUrlSearch=xqurl)  # https://hz.lianjia.com/ershoufang/pg1rs金地自在城/  yield
+            xqPageCount = 0
+
+            for pageUrlInXq in pagesUrlInXq:
+                try:
+                    if pageUrlInXq == None:
+                        # print('小区没有房子在售')
+                        logging.info('小区没有房子在售')
+                        break
+                    xqPageCount += 1
+                    # print('该小区第'+str(xqPageCount)+'页')
+                    logging.info('该小区第' + str(xqPageCount) + '页  -url:' + pageUrlInXq)
+                    # print(pageUrl2)
+                    # 某个小区有很多房源，有很多页，某一页中所有指向所有房源的url组装成列表返回给houseUrlList
+                    houseUrlList = getHouseInfoInPage(pageUrlInXq)  # return
+                    # for tt in houseUrlList:
+                    #     print(tt)
+                    t = uniform(1, 3)
+                    time.sleep(t)
+
+                    pool.map(main, [url for url in houseUrlList])
+                except Exception as e:
+                    # 小区某页未能请求成功，添加进队列后续处理 getHouseInfoInPage(pageUrl2)
+                    # undonePageUrlInXqList.append(pageUrl2)
+                    logging.error('Error' + pageUrlInXq, exc_info=True)
+        except Exception as e:
+            undoneXqList.append(xqurl)
+            logging.error('Error' + xqurl, exc_info=True)
+
+
+def handleundonePageUrlInXqList():
+    pool = Pool()  # 开启多线程
+    for pageUrlInXq in undonePageUrlInXqList:
+        xqPageCount = 0
+        try:
+
+            xqPageCount += 1
+            # print('该小区第'+str(xqPageCount)+'页')
+            logging.info('该小区第' + str(xqPageCount) + '页  -url:' + pageUrlInXq)
+            # print(pageUrl2)
+            # 某个小区有很多房源，有很多页，某一页中所有指向所有房源的url组装成列表返回给houseUrlList
+            houseUrlList = getHouseInfoInPage(pageUrlInXq)  # return
+            # for tt in houseUrlList:
+            #     print(tt)
+            t = uniform(1, 3)
+            time.sleep(t)
+
+            pool.map(main, [url for url in houseUrlList])
+        except Exception as e:
+            # 小区某页未能请求成功，添加进队列后续处理 getHouseInfoInPage(pageUrl2)
+            # undonePageUrlInXqList.append(pageUrlInXq)
+            logging.error('Error' + pageUrlInXq, exc_info=True)
+
+def handleundoneHouseUrlList():
+    for url in undoneHouseUrlList:
+        main(url)
+    pass
+def runSecond():
+    beginTime =  datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');
+    beginTimeStamp =  time.time();
+    logging.info('第二次爬取开始......')
+    logging.info("undonePageUrlInRegionList:"+str(undonePageUrlInRegionList))
+    logging.info("undoneXqList:" + str(undoneXqList))
+    logging.info("undonePageUrlInXqList:" + str(undonePageUrlInXqList))
+    logging.info("undoneHouseUrlList:" + str(undoneHouseUrlList))
+
+    if len(undonePageUrlInRegionList) != 0:
+        handleundonePageUrlInRegionList()
+    if len(undoneXqList) != 0:
+        handleundoneXqList()
+    if len(undonePageUrlInXqList) != 0:
+        handleundonePageUrlInXqList()
+    if len(undoneHouseUrlList) != 0:
+        handleundoneHouseUrlList()
+
+
+    endTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');
+    endTimeStamp = time.time();
+    logging.info('第二次爬取结束.....')
+    logging.info('第二次开始时间：' + beginTime + '   第二次结束时间：' + endTime + '  -第二次用时：' + str(endTimeStamp - beginTimeStamp))
+
 
 def run():
     setup_logging(YAML_PATH)
-    pool = Pool()  # 开启多线程
     regionPageCount = 0
-
+    pool = Pool()  # 开启多线程
     beginTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');
     beginTimeStamp = time.time();
     # user_in_city = input('输入爬取城市：')
     # user_in_nub = input('输入爬取页数：')
-    city = 'hz'
-    baseUrl = 'https://' + city + '.lianjia.com'
+
+
     regionsList = getRegionsList(city)
     # regionsList.remove('/xiaoqu/xihu/')
 
     logging.info(regionsList)
     print(regionsList)
-    #regionsList = ['/xiaoqu/linan/']
-    regionsList.remove('/xiaoqu/linan/')
+    # regionsList = ['/xiaoqu/linan/']
+    regionsList = ['/xiaoqu/fuyang/']
+    # regionsList.remove('/xiaoqu/linan/')
     for region in regionsList:  # region形式为/xiaoqu/xihu/  return
+        try:
+            # https://hz.lianjia.com/xiaoqu/xihu/pg1/
+            pageUrlsInRegion = getPageUrlInRegion(baseUrl=baseUrl, region=region)  # 行政区中小区列表的所有page   yield
+            for pageUrl1 in pageUrlsInRegion:
+                try:
+                    if pageUrl1 == None:
+                        logging.info('该行政区没有小区有在售二手房')
+                        break
+                    regionPageCount += 1
+                    # print('行政区第'+str(regionPageCount)+'页')
+                    logging.info(str(region) + str(regionPageCount) + '页-  url:' + pageUrl1)
 
-        # https://hz.lianjia.com/xiaoqu/xihu/pg1/
-        pageUrlInRegion = getPageUrlInRegion(baseUrl=baseUrl, region=region)  # 行政区中小区列表的某一页   yield
-        for pageUrl1 in pageUrlInRegion:
-            try:
-                if pageUrl1 == None:
-                    logging.info('该行政区没有小区有在售二手房')
-                    break
-                regionPageCount += 1
-                # print('行政区第'+str(regionPageCount)+'页')
-                logging.info(str(region) + str(regionPageCount) + '页-  url:' + pageUrl1)
+                    # 行政区中的小区有很多页，某一页中所有指向小区的url组装成列表返回给xqUrlSearch 格式： https://hz.lianjia.com/ershoufang/rs金地自在城/
+                    xqUrlSearch = getXqInfoInPage(pageUrl1, city)  # yield  https://hz.lianjia.com/ershoufang/rs金地自在城/
+                    # xqSearchBaseUrl = baseUrl+'/ershoufang/rs'
+                    for xqurl in xqUrlSearch:
+                        try:
+                            # print('开始爬取某个小区，url：'+xqurl)
+                            logging.info('开始爬取某个小区，url：' + xqurl + '\n')
 
-                # 行政区中的小区有很多页，某一页中所有指向小区的url组装成列表返回给xqUrlSearch 格式： https://hz.lianjia.com/ershoufang/rs金地自在城/
-                xqUrlSearch = getXqInfoInPage(pageUrl1, city)  # yield  https://hz.lianjia.com/ershoufang/rs金地自在城/
-                # xqSearchBaseUrl = baseUrl+'/ershoufang/rs'
-                for xqurl in xqUrlSearch:
-                    # print('开始爬取某个小区，url：'+xqurl)
-                    logging.info('开始爬取某个小区，url：' + xqurl + '\n')
+                            # 小区的在售房源有20页 1-20页，每页的url 返回给pageUrlInXq
+                            pageUrlInXq = getAllPageUrlInXq(baseUrl=baseUrl,
+                                                            xqUrlSearch=xqurl)  # https://hz.lianjia.com/ershoufang/pg1rs金地自在城/  yield
+                            xqPageCount = 0
 
-                    # 小区的在售房源有20页 1-20页，每页的url 返回给pageUrlInXq
-                    pageUrlInXq = getAllPageUrlInXq(baseUrl=baseUrl,
-                                                    xqUrlSearch=xqurl)  # https://hz.lianjia.com/ershoufang/pg1rs金地自在城/  yield
-                    xqPageCount = 0
+                            for pageUrl2 in pageUrlInXq:
+                                try:
+                                    if pageUrl2 == None:
+                                        # print('小区没有房子在售')
+                                        logging.info('小区没有房子在售')
+                                        break
+                                    xqPageCount += 1
+                                    # print('该小区第'+str(xqPageCount)+'页')
+                                    logging.info('该小区第' + str(xqPageCount) + '页  -url:' + pageUrl2)
+                                    # print(pageUrl2)
+                                    # 某个小区有很多房源，有很多页，某一页中所有指向所有房源的url组装成列表返回给houseUrlList
+                                    houseUrlList = getHouseInfoInPage(pageUrl2)  # return
+                                    # for tt in houseUrlList:
+                                    #     print(tt)
+                                    t = uniform(1, 3)
+                                    time.sleep(t)
 
-                    for pageUrl2 in pageUrlInXq:
-                        if pageUrl2 == None:
-                            # print('小区没有房子在售')
-                            logging.info('小区没有房子在售')
-                            break
-                        xqPageCount += 1
-                        # print('该小区第'+str(xqPageCount)+'页')
-                        logging.info('该小区第' + str(xqPageCount) + '页  -url:' + pageUrl2)
-                        # print(pageUrl2)
-                        # 某个小区有很多房源，有很多页，某一页中所有指向所有房源的url组装成列表返回给houseUrlList
-                        houseUrlList = getHouseInfoInPage(pageUrl2)  # return
-                        # for tt in houseUrlList:
-                        #     print(tt)
-                        t = uniform(1, 3)
-                        time.sleep(t)
-
-                        pool.map(main, [url for url in houseUrlList])
-            except Exception as e:
-                logging.error('Error', exc_info=True)
+                                    pool.map(main, [url for url in houseUrlList])
+                                except Exception as e:
+                                    #小区某页未能请求成功，添加进队列后续处理 getHouseInfoInPage(pageUrl2)
+                                    undonePageUrlInXqList.append(pageUrl2)
+                                    logging.error('Error'+pageUrl2, exc_info=True)
+                        except Exception as e:
+                            undoneXqList.append(xqurl)
+                            logging.error('Error'+xqurl, exc_info=True)
+                except Exception as e:
+                    undonePageUrlInRegionList.append(pageUrl1)
+                    logging.error('Error'+pageUrl1, exc_info=True)
+        except Exception as  e:
+            logging.error('Error warming '+ region+'爬取出错')
+            logging.error('Error', exc_info=True)
             # finally:
             #     print('finally...')
             # except ConnectionError as e:
@@ -322,12 +487,13 @@ def run():
     #     except Timeout as e:
     #         print('请求超时')
 
+
     endTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');
     endTimeStamp = time.time();
     logging.info('爬取结束.....')
     logging.info('开始时间：' + beginTime + '   结束时间：' + endTime + '  -用时：' + str(endTimeStamp - beginTimeStamp))
 
-
+    runSecond()
 if __name__ == '__main__':
     runRightnow = input('是否立即执行，y/n')
     if runRightnow == 'y':
