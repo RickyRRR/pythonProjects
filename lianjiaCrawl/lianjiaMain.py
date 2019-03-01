@@ -43,7 +43,7 @@ undoneHouseUrlList = [] #记录没成功请求的房子url
 undonePageUrlInXqList = []  #m小区某页没请求成功，请求该页的所有房子url失败
 undoneXqList = []   #根据小区，请求该小区的所有pageUrl失败
 undonePageUrlInRegionList = []
-count = 0
+sumcount = 0
 # 一个我们将要爬取城市的列表
 cities = ['bj', 'sh', 'nj', 'wh', 'cd', 'xa','hf']
 
@@ -118,7 +118,8 @@ def open_url(detailUrl):  # 分析详细url获取所需信息
                     info['houseNo'] = temp.siblings().text()   #房协编号
                     break
 
-            info['time' + currentdate] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            # info['time' + currentdate] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            info['time' + currentdate] = datetime.datetime.now()
             info['city'] = '杭州'
             logging.info(info)
             return info
@@ -135,9 +136,12 @@ def open_url(detailUrl):  # 分析详细url获取所需信息
 
 #存储数据
 def update_to_MongoDB(one_page):  # update储存到MongoDB
+     global sumcount
      if db[Mongo_TABLE].update({'lianjiaNo': one_page['lianjiaNo']}, {'$set': one_page}, True): #去重复  True的意思如果不存在插入，存在则更新
 
          logging.info('储存MongoDB 成功!')
+         sumcount += 1
+
          return True
      logging.info('储存MongoDB 失败!')
      return False
@@ -382,7 +386,8 @@ def runSecond():
     endTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');
     endTimeStamp = time.time();
     logging.info('第二次爬取结束.....')
-    logging.info('第二次开始时间：' + beginTime + '   第二次结束时间：' + endTime + '  -第二次用时：' + str(endTimeStamp - beginTimeStamp))
+    logging.info('第二次开始时间：' + beginTime +
+                 '   第二次结束时间：' + endTime + '  -第二次用时：' + str(endTimeStamp - beginTimeStamp)+'数量：'+str(sumcount))
 
 
 def run():
@@ -401,7 +406,7 @@ def run():
     logging.info(regionsList)
     print(regionsList)
     # regionsList = ['/xiaoqu/linan/']
-    regionsList = ['/xiaoqu/fuyang/']
+    # regionsList = ['/xiaoqu/fuyang/']
     # regionsList.remove('/xiaoqu/linan/')
     for region in regionsList:  # region形式为/xiaoqu/xihu/  return
         try:
@@ -491,7 +496,7 @@ def run():
     endTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');
     endTimeStamp = time.time();
     logging.info('爬取结束.....')
-    logging.info('开始时间：' + beginTime + '   结束时间：' + endTime + '  -用时：' + str(endTimeStamp - beginTimeStamp))
+    logging.info('开始时间：' + beginTime + '   结束时间：' + endTime + '  -用时：' + str(endTimeStamp - beginTimeStamp) + '数量：'+str(sumcount))
 
     runSecond()
 if __name__ == '__main__':
