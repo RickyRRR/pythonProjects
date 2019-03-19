@@ -31,7 +31,15 @@ import json
 from pyquery import PyQuery as pq
 #请求页面
 def get_one_page(url):
-    response = requests.get(url);
+    r = requests.get('http://127.0.0.1:5000/random')
+    print(r.text)
+    # r = requests.get('http://p.ashtwo.cn')
+    # print(r.text)
+    # doc = pq(r.text)
+    # aa = doc.find('p').text()
+    # print(aa)
+    proxies = {'http': r.text}
+    response = requests.get(url,proxies= proxies);
     if response.status_code==200:
         return response.text;
     return None;
