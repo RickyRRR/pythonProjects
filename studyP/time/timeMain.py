@@ -4,6 +4,7 @@
 ' a hello module '
 import datetime
 # time.time()  时间戳
+import math
 import time
 
 now_time = datetime.datetime.now()
@@ -54,11 +55,12 @@ def datetime_toTimestamp(dt):
 if __name__ == '__main__':
     # testTime()
     # string_toDatetime('2019-02-28 16:24:19')
-
+    # starttime =
+    finishtime = datetime.datetime(2019, 3, 22, 14, 40, 27, 84437).strftime('"%Y-%m-%d %H:%M:%S"')
     print(type(dt))
     print(dt)
-    b = 2
-    a = 'aa' +2
-    print(a)
+
+    num = 120/30
+    print(math.ceil(num))
 
 
