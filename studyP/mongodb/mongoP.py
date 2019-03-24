@@ -1,8 +1,9 @@
 import pymongo
 from bson.objectid import ObjectId
 
-client = pymongo.MongoClient(host='localhost', port=27017)
-db = client.mytest;
+client = pymongo.MongoClient(host='154.8.225.214', port=27017)
+# db = client.mytest;
+db = client.lianjia
 collection = db["mycollection"]   #指定集合
 student = {
     'id': '20170101',
@@ -41,6 +42,9 @@ student2 = {
 # results = collection.find({'communityArea':{'$regex':'^西湖'} })   #({'name': {'$regex': '^M.*'}})
 # count = collection.find({'communityArea':{'$regex':'^西湖'} }).count()
 num = 0
+documents = db['HSHBershoufang'].find()
+for d in documents:
+
 for i in collection.find().limit(1):
         aa = ''
         for a in i.keys():
@@ -51,3 +55,9 @@ for i in collection.find().limit(1):
 #     num += 1
 #     print(result)
 print(num)
+db.collection.update(
+  { tag : "refurb"},
+  { $mul: { Price : 0.5 } }
+);
+db.getCollection('HSHBershoufang').find().forEach(function(item){
+    db.getCollection('HSHBershoufang').update({"_id": item._id}, {"$set": {"squarePrice20190324": item.squarePrice20190324}}, false, true)
